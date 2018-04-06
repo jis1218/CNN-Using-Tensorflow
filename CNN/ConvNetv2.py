@@ -13,13 +13,13 @@ from tensorflow.examples.tutorials.mnist import input_data
 class ConvNetv2(object):
 
     def __init__(self):
-        mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
+        
         
         learning_rate = 0.1
-        training_epochs = 20
+        training_epochs = 10
         batch_size = 100
-        display_step = 1
-        
+        display_step = 10
+        mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
 
         
         with tf.Graph().as_default():            
@@ -28,8 +28,8 @@ class ConvNetv2(object):
             self.keep_prob = tf.placeholder(tf.float32)
             keep_prob = self.keep_prob
             output = self.inference(x, keep_prob)
-            cost = self.loss(output, t)
             global_step = tf.Variable(0, name='global_step', trainable=False)
+            cost = self.loss(output, t)
             train_op = self.training(cost, global_step, learning_rate)
             eval_op = self.evaluate(output, t)
             summary_op = tf.summary.merge_all()
@@ -44,12 +44,17 @@ class ConvNetv2(object):
                 avg_cost = 0
                 for i in range(total_batch):
                     batch_x, batch_y = mnist.train.next_batch(batch_size)
-                    feed_dict = {x : batch_x, t : batch_y, keep_prob : 0.5}
+                    feed_dict = {x : batch_x, t : batch_y, keep_prob : 1.0}
                     sess.run(train_op, feed_dict=feed_dict)
+                    accuracy = sess.run(eval_op, feed_dict= feed_dict)
                     minibatch_cost = sess.run(cost, feed_dict=feed_dict)
                     avg_cost += minibatch_cost/total_batch
+                    if i%display_step==0:
+                        print('step', i, 'training accuracy', accuracy)
                     
                 if epoch%display_step==0 :
+                    accuracy = sess.run(eval_op, feed_dict=feed_dict)
+                    print(accuracy)
                     val_feed_dict = {x : mnist.validation.images, t : mnist.validation.labels, keep_prob : 1.0}
                     accuracy = sess.run(eval_op, feed_dict=val_feed_dict)
                     summary_str = sess.run(summary_op, feed_dict=feed_dict)
@@ -65,8 +70,10 @@ class ConvNetv2(object):
         sess.close()        
         
     def conv2d(self, input, weight_shape, bias_shape):
-        weightX = weight_shape[0]*weight_shape[2]*weight_shape[2]
+        weightX = weight_shape[0]*weight_shape[1]*weight_shape[2]
+        
         weight_init = tf.random_normal_initializer(stddev=(2.0/weightX)**0.5) #왜 stddev를 이렇게 주는지 확인이 필요하다
+
         W = tf.get_variable("W", weight_shape, initializer=weight_init)
         bias_init = tf.constant_initializer(value = 0)
         b = tf.get_variable("b", bias_shape, initializer=bias_init)
@@ -89,12 +96,11 @@ class ConvNetv2(object):
         with tf.variable_scope("fc"):
             pool_2_flat = tf.reshape(pool_2, [-1, 7*7*64]) #4차원 배열을 2차원 배열로 만들어줌
             fc_1 = self.layer(pool_2_flat, [7*7*64, 1024], [1024])
-            
-            # ��Ӿƿ� ����
+
             fc_1_drop = tf.nn.dropout(fc_1, keep_prob)
             
         with tf.variable_scope("output"):
-            output = self.layer(fc_1_drop, [1024, 10], [10])
+            output = self.lastlayer(fc_1_drop, [1024, 10], [10])
         
         return output
             
@@ -104,12 +110,17 @@ class ConvNetv2(object):
         bias_init = tf.constant_initializer(value=0)
         W = tf.get_variable("W", weight_shape, initializer=w_init)
         b = tf.get_variable("b", bias_shape, initializer=bias_init)
-        return tf.nn.relu(tf.matmul(input, W)+b)        
+        return tf.nn.relu(tf.matmul(input, W)+b)  
+    
+    def lastlayer(self, input, weight_shape, bias_shape):
+        weight_stddev = (2.0/weight_shape[0])**0.5
+        w_init = tf.random_normal_initializer(stddev=weight_stddev)
+        bias_init = tf.constant_initializer(value=0)
+        W = tf.get_variable("W", weight_shape, initializer=w_init)
+        b = tf.get_variable("b", bias_shape, initializer=bias_init)
+        return tf.nn.softmax(tf.matmul(input, W)+b)       
     
     def loss(self, output, t):
-#         dot_product = t*tf.log(tf.clip_by_value(output, 1e-10, 1.0))
-#         cross_entropy = -tf.reduce_sum(dot_product, reduction_indices=1)
-#         loss = tf.reduce_mean(cross_entropy)
         cross_entropy = tf.nn.softmax_cross_entropy_with_logits(labels=t, logits=output)
         loss = tf.reduce_mean(cross_entropy)
         return loss
@@ -121,7 +132,7 @@ class ConvNetv2(object):
     
     def training(self, cost, global_step, learning_rate):
         tf.summary.scalar("cost", cost)
-        optimizer = tf.train.AdamOptimizer(learning_rate)
+        optimizer = tf.train.GradientDescentOptimizer(learning_rate)
         train_op = optimizer.minimize(cost, global_step = global_step)
         return train_op
         

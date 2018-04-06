@@ -60,7 +60,7 @@ class ConvNetv1(object):
         sess.run(tf.global_variables_initializer())
         for i in range(10000):
             batch = mnist.train.next_batch(50)
-            if i%100==0 :
+            if i%10==0 :
                 train_accuracy = accuracy.eval(feed_dict={x:batch[0], t:batch[1]})
                 print("step %d, training accuracy %g"%(i, train_accuracy))
             
