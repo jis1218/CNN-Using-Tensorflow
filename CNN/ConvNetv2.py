@@ -70,7 +70,7 @@ class ConvNetv2(object):
         sess.close()        
         
     def conv2d(self, input, weight_shape, bias_shape):
-        weightX = weight_shape[0]*weight_shape[1]*weight_shape[2]
+        weightX = weight_shape[0]*weight_shape[1]*weight_shape[2] #여기를 이상하게 줬더니 엄청 고생함
         
         weight_init = tf.random_normal_initializer(stddev=(2.0/weightX)**0.5) #왜 stddev를 이렇게 주는지 확인이 필요하다
 
@@ -118,7 +118,7 @@ class ConvNetv2(object):
         bias_init = tf.constant_initializer(value=0)
         W = tf.get_variable("W", weight_shape, initializer=w_init)
         b = tf.get_variable("b", bias_shape, initializer=bias_init)
-        return tf.nn.softmax(tf.matmul(input, W)+b)       
+        return tf.nn.softmax(tf.matmul(input, W)+b)        #softmax를 사용하지 않았더니 엄청 고생함
     
     def loss(self, output, t):
         cross_entropy = tf.nn.softmax_cross_entropy_with_logits(labels=t, logits=output)
