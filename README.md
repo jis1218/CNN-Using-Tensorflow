@@ -11,3 +11,29 @@ initial = tf.truncated_normal(shape, stddev=0.1)
     print(result)
     print(sum(result))
 ```
+
+##### GPU로 실행했을 때 아래 코드를 실행하면 다음과 같은 에러가 뜬다.
+```python
+ def conv2d(self, x, W):
+        return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
+```
+```
+ResourceExhaustedError (see above for traceback): OOM when allocating tensor with shape[10000,32,28,28] and type float on /job:localhost/replica:0/task:0/device:GPU:0 by allocator GPU_0_bfc
+	 [[Node: Conv2D = Conv2D[T=DT_FLOAT, data_format="NHWC", dilations=[1, 1, 1, 1], padding="SAME", strides=[1, 1, 1, 1], use_cudnn_on_gpu=true, _device="/job:localhost/replica:0/task:0/device:GPU:0"](Reshape, Variable/read)]]
+Hint: If you want to see a list of allocated tensors when OOM happens, add report_tensor_allocations_upon_oom to RunOptions for current allocation info.
+```
+
+##### GPU의 메모리가 10000개나 되는 test data를 한번에 처리하기 어렵기 때문에 이런 에러가 뜬 것 같다
+
+##### 텐서보드 사용법 - 만약 로그의 위치가 D:\java-neon\eclipse\python\CNNUsingTensorFlow\CNN\board\sample 안에 있다면
+##### cmd에 D:\java-neon\eclipse\python\CNNUsingTensorFlow\CNN\board>tensorboard --logdir=sample/
+##### 라고 치면 된다.
+
+##### ConvNet ver 1과 ver 2가 차이가 난다. ver 1은 잘 돌아가는데 ver 2는 학습이 전혀 안된다. tensorflow를 제대로 사용하지 못해서일까?
+
+##### ConvNet ver 1을 다음과 같은 조건으로 돌려보았다.
+##### Conv - Pool - Conv - Pool - fc - fc - softmax
+##### mini_batch = 100, epoch = 2000, GradientDescentdent, learning_rate = 0.0001 -> test data accuracy : 0.7396
+##### mini_batch = 100, epoch = 2000, GradientDescentdent, learning_rate = 0.0001, Dropout -> test data accuracy : 0.6763
+##### mini_batch = 100, epoch = 2000, Adam, learning_rate = 0.0001 -> test data accuracy : 0.9812
+##### mini_batch = 100, epoch = 2000, Adam, learning_rate = 0.0001, Dropout -> test data accuracy : 0.9822

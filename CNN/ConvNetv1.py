@@ -14,6 +14,8 @@ class ConvNetv1(object):
 
     def __init__(self):
         mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
+        config = tf.ConfigProto(allow_soft_placement=True)
+        config.gpu_options.allocator_type = 'BFC'
         sess = tf.InteractiveSession()
     
     
@@ -47,27 +49,37 @@ class ConvNetv1(object):
         h_pool2_flat = tf.reshape(h_pool2, [-1, 7*7*64])
         h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1)+b_fc1)
         
+        keep_prob = tf.placeholder(tf.float32)
+        h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
+        
         W_fc2 = self.weight_variable([1024, 10])
         b_fc2 = self.bias_variable([10])
         
-        y_conv=tf.nn.softmax(tf.matmul(h_fc1, W_fc2)+b_fc2)
+        y_conv=tf.nn.softmax(tf.matmul(h_fc1_drop, W_fc2)+b_fc2)
         
         cross_entropy = tf.reduce_mean(-tf.reduce_sum(t*tf.log(tf.clip_by_value(y_conv, 1e-10, 1.0)), reduction_indices=[1]))
         # train_step = tf.train.GradientDescentOptimizer(0.5).minimize(cross_entropy)
-        train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
+        train_step = tf.train.GradientDescentOptimizer(1e-4).minimize(cross_entropy)
         correct_prediction = tf.equal(tf.argmax(y_conv, 1), tf.argmax(t, 1))
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
         sess.run(tf.global_variables_initializer())
-        for i in range(10000):
-            batch = mnist.train.next_batch(50)
+        for i in range(2000):
+            batch = mnist.train.next_batch(100)
             if i%10==0 :
-                train_accuracy = accuracy.eval(feed_dict={x:batch[0], t:batch[1]})
+                train_accuracy = accuracy.eval(feed_dict={x:batch[0], t:batch[1], keep_prob : 0.5})
                 print("step %d, training accuracy %g"%(i, train_accuracy))
             
-            train_step.run(feed_dict={x: batch[0], t: batch[1]}) #학습이미지 확인
-                
-        print("test accuracy %g"%accuracy.eval(feed_dict={
-        x: mnist.test.images, t: mnist.test.labels})) #테스트 이미지 확인
+            train_step.run(feed_dict={x: batch[0], t: batch[1], keep_prob : 0.5}) #학습이미지 확인
+        
+        batch_size = 50
+        batch_num = int(mnist.test._num_examples / batch_size)
+        test_accuracy = 0
+        
+        for i in range(batch_num):
+            batch = mnist.test.next_batch(batch_size)
+            test_accuracy += accuracy.eval(feed_dict={x:batch[0], t:batch[1], keep_prob : 1.0})        
+        test_accuracy /= batch_num
+        print("test accuracy %g"%test_accuracy) #테스트 이미지 확인
         
         # 시간이 상당히 많이 걸린다. 그 이유는 합성곱 과정에서 시간을 많이 잡아먹기 때문
         
@@ -80,8 +92,15 @@ class ConvNetv1(object):
         return tf.Variable(initial)
     
     def conv2d(self, x, W):
-        return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME') #4차원 텐서를 2차원 배열로 만들어주는 역할 - Computes a 2-D convolution given 4-D `input` and `filter` tensors. padding을 'SAME'으로 하면 출력 크기가 입력과 같게 되도록 0으로 패딩하도록 설정한다. 즉 입력 크기가 [28, 28] 이라면 출력 크기도 [28, 28]이다.
+        return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME', use_cudnn_on_gpu=True) #4차원 텐서를 2차원 배열로 만들어주는 역할 - Computes a 2-D convolution given 4-D `input` and `filter` tensors. padding을 'SAME'으로 하면 출력 크기가 입력과 같게 되도록 0으로 패딩하도록 설정한다. 즉 입력 크기가 [28, 28] 이라면 출력 크기도 [28, 28]이다.
     
     def max_pool_2x2(self, x):
         return tf.nn.max_pool(x, ksize=[1,2,2,1], strides=[1,2,2,1], padding='SAME')
+    
+    def conv_batch_norm(selfx, n_out, phase_train):
+        beta_init = tf.constant_initializer(value=0.0, dtype=tf.float32)
+        gamma_init = tf.constant_initializer(value=1.0, dtype=tf.float32)
+        
+        beta = tf.get_variable("beta", )
+        
     

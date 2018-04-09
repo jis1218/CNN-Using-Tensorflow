@@ -23,6 +23,7 @@ class ConvNetv2(object):
 
         
         with tf.Graph().as_default():            
+            sess = tf.Session()
             x = tf.placeholder(tf.float32, shape=[None, 784])
             t = tf.placeholder(tf.float32, shape=[None, 10])
             self.keep_prob = tf.placeholder(tf.float32)
@@ -34,7 +35,7 @@ class ConvNetv2(object):
             eval_op = self.evaluate(output, t)
             summary_op = tf.summary.merge_all()
             saver = tf.train.Saver()
-            sess = tf.Session()
+            
             summary_writer = tf.summary.FileWriter("board/sample", graph_def=sess.graph_def)
             init_op = tf.global_variables_initializer()
             sess.run(init_op)
@@ -42,7 +43,7 @@ class ConvNetv2(object):
             for epoch in range(training_epochs):
                 total_batch = int(mnist.train.num_examples/batch_size)
                 avg_cost = 0
-                for i in range(total_batch):
+                for i in range(500):
                     batch_x, batch_y = mnist.train.next_batch(batch_size)
                     feed_dict = {x : batch_x, t : batch_y, keep_prob : 1.0}
                     sess.run(train_op, feed_dict=feed_dict)
@@ -51,22 +52,30 @@ class ConvNetv2(object):
                     avg_cost += minibatch_cost/total_batch
                     if i%display_step==0:
                         print('step', i, 'training accuracy', accuracy)
+                        accuracy = sess.run(eval_op, feed_dict=feed_dict)
+                        print(accuracy)
+                        val_feed_dict = {x : mnist.validation.images, t : mnist.validation.labels, keep_prob : 1.0}
+                        accuracy = sess.run(eval_op, feed_dict=val_feed_dict)
+                        summary_str = sess.run(summary_op, feed_dict=feed_dict)
+                        summary_writer.add_summary(summary_str, sess.run(global_step))
+                        saver.save(sess, "logistic_logs/model-checkpoint", global_step=global_step)
+                        print("Validation Accuracy:", (accuracy))
                     
-                if epoch%display_step==0 :
-                    accuracy = sess.run(eval_op, feed_dict=feed_dict)
-                    print(accuracy)
-                    val_feed_dict = {x : mnist.validation.images, t : mnist.validation.labels, keep_prob : 1.0}
-                    accuracy = sess.run(eval_op, feed_dict=val_feed_dict)
-                    summary_str = sess.run(summary_op, feed_dict=feed_dict)
-                    summary_writer.add_summary(summary_str, sess.run(global_step))
-                    saver.save(sess, "logistic_logs/model-checkpoint", global_step=global_step)
-                    print("Validation Accuracy:", (accuracy))
+                #if i%display_step==0 :
+                    
             
         print("Optimization Finished!")
                    
-        test_feed_dict = {x : mnist.test.images, t : mnist.test.labels, self.keep_prob : 1.0}
-        accuracy = sess.run(eval_op, feed_dict = test_feed_dict )
-        print("Test Accuracy:", accuracy)
+
+        batch_size = 50
+        batch_num = int(mnist.test._num_examples / batch_size)
+        test_accuracy = 0
+        
+        for i in range(batch_num):
+            batch = mnist.test.next_batch(batch_size)
+            test_accuracy += sess.run(eval_op, feed_dict={x:batch[0], t:batch[1], keep_prob : 1.0})        
+        test_accuracy /= batch_num
+        print("test accuracy %g"%test_accuracy) #테스트 이미지 확인
         sess.close()        
         
     def conv2d(self, input, weight_shape, bias_shape):
@@ -96,7 +105,6 @@ class ConvNetv2(object):
         with tf.variable_scope("fc"):
             pool_2_flat = tf.reshape(pool_2, [-1, 7*7*64]) #4차원 배열을 2차원 배열로 만들어줌
             fc_1 = self.layer(pool_2_flat, [7*7*64, 1024], [1024])
-
             fc_1_drop = tf.nn.dropout(fc_1, keep_prob)
             
         with tf.variable_scope("output"):
@@ -121,8 +129,7 @@ class ConvNetv2(object):
         return tf.nn.softmax(tf.matmul(input, W)+b)        #softmax를 사용하지 않았더니 엄청 고생함
     
     def loss(self, output, t):
-        cross_entropy = tf.nn.softmax_cross_entropy_with_logits(labels=t, logits=output)
-        loss = tf.reduce_mean(cross_entropy)
+        loss = tf.reduce_mean(-tf.reduce_sum(t*tf.log(tf.clip_by_value(output, 1e-10, 1.0)), reduction_indices=[1]))
         return loss
     
     def evaluate(self, output, t):
@@ -132,7 +139,8 @@ class ConvNetv2(object):
     
     def training(self, cost, global_step, learning_rate):
         tf.summary.scalar("cost", cost)
-        optimizer = tf.train.GradientDescentOptimizer(learning_rate)
-        train_op = optimizer.minimize(cost, global_step = global_step)
+        optimizer = tf.train.AdamOptimizer(learning_rate)
+        train_op = optimizer.minimize(cost)
+        
         return train_op
         

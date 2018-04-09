@@ -12,6 +12,8 @@ from numpy import shape
 from CNN.ConvNetv1 import ConvNetv1
 from CNN.ConvNetv2 import ConvNetv2
 if __name__ == '__main__':
+    
+
     convNetv2 = ConvNetv2()
     
     pass
