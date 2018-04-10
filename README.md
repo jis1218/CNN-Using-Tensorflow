@@ -30,6 +30,8 @@ Hint: If you want to see a list of allocated tensors when OOM happens, add repor
 ##### 라고 치면 된다.
 
 ##### ConvNet ver 1과 ver 2가 차이가 난다. ver 1은 잘 돌아가는데 ver 2는 학습이 전혀 안된다. tensorflow를 제대로 사용하지 못해서일까?
+##### 그 이유는 바로 learning rate 때문이었음, ver 1에서는 0.0001로 정해주고 ver 2에서는 0.1로 정하였는데 깊이가 깊은 신경망에서는 learning_rate을 낮게 정해주는 것이 좋은 것 같음, 그렇지 않으면 delta w가 발산하게 됨 (w = w - a*delta_w)
+##### hyperparameter의 중요성을 뼈저리게 깨달음
 
 ##### ConvNet ver 1을 다음과 같은 조건으로 돌려보았다.
 ##### Conv - Pool - Conv - Pool - fc - fc - softmax
@@ -37,3 +39,11 @@ Hint: If you want to see a list of allocated tensors when OOM happens, add repor
 ##### mini_batch = 100, epoch = 2000, GradientDescentdent, learning_rate = 0.0001, Dropout -> test data accuracy : 0.6763
 ##### mini_batch = 100, epoch = 2000, Adam, learning_rate = 0.0001 -> test data accuracy : 0.9812
 ##### mini_batch = 100, epoch = 2000, Adam, learning_rate = 0.0001, Dropout -> test data accuracy : 0.9822
+
+##### ConvNet ver 2를 다음과 같은 조건으로 돌려보았다.
+##### mini_batch = 100, epoch = 2000, GradientDescentdent, learning_rate = 0.0001 -> test data accuracy : 0.8754
+##### mini_batch = 100, epoch = 2000, GradientDescentdent, learning_rate = 0.0001, Dropout -> test data accuracy : 0.8736
+##### mini_batch = 100, epoch = 2000, GradientDescentdent, learning_rate = 0.0001, batch_normalization -> test data accuracy : 0.892
+##### mini_batch = 100, epoch = 2000, Adam, learning_rate = 0.0001 -> test data accuracy : 0.9863
+##### mini_batch = 100, epoch = 2000, Adam, learning_rate = 0.0001, Dropout -> test data accuracy : 0.9878
+##### mini_batch = 100, epoch = 2000, Adam, learning_rate = 0.0001, batch_normalization -> test data accuracy : 0.9878

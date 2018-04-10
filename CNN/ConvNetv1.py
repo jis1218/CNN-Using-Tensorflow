@@ -63,13 +63,14 @@ class ConvNetv1(object):
         correct_prediction = tf.equal(tf.argmax(y_conv, 1), tf.argmax(t, 1))
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
         sess.run(tf.global_variables_initializer())
+        
         for i in range(2000):
             batch = mnist.train.next_batch(100)
             if i%10==0 :
                 train_accuracy = accuracy.eval(feed_dict={x:batch[0], t:batch[1], keep_prob : 0.5})
                 print("step %d, training accuracy %g"%(i, train_accuracy))
             
-            train_step.run(feed_dict={x: batch[0], t: batch[1], keep_prob : 0.5}) #학습이미지 확인
+            train_step.run(feed_dict={x: batch[0], t: batch[1], keep_prob : 1.0}) #학습이미지 확인
         
         batch_size = 50
         batch_num = int(mnist.test._num_examples / batch_size)
@@ -97,10 +98,5 @@ class ConvNetv1(object):
     def max_pool_2x2(self, x):
         return tf.nn.max_pool(x, ksize=[1,2,2,1], strides=[1,2,2,1], padding='SAME')
     
-    def conv_batch_norm(selfx, n_out, phase_train):
-        beta_init = tf.constant_initializer(value=0.0, dtype=tf.float32)
-        gamma_init = tf.constant_initializer(value=1.0, dtype=tf.float32)
-        
-        beta = tf.get_variable("beta", )
         
     
